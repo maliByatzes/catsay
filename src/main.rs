@@ -1,5 +1,7 @@
 use clap::Parser;
 use colored::Colorize;
+use anyhow::{Context, Result};
+use std::io::{self, Read};
 
 #[derive(Parser)]
 struct Options {
@@ -12,18 +14,27 @@ struct Options {
     #[clap(short = 'f', long = "file")]
     /// Load the cat picture from specified file
     catfile: Option<std::path::PathBuf>,
+    #[clap(short = 'i', long = "stdin")]
+    /// Read the message from STDIN instead of the argument
+    stdin: bool,
 }
 
-fn main() {
+fn main() -> Result<()> {
     let options = Options::parse();
-    let message = options.message;
+    let mut message = String::new();
+
+    if options.stdin {
+        io::stdin().read_to_string(&mut message)?;
+    } else {
+        message = options.message;
+    }
 
     let eye = if options.dead { "x" } else { "o" };
 
     match &options.catfile {
         Some(path) => {
-            let cat_template = std::fs::read_to_string(path)
-                .expect(&format!("could not read file {:?}", path));
+            let cat_template = std::fs::read_to_string(path).with_context(
+                || format!("Could not read file {:?}", path))?;
             let eye = format!("{}", eye.red().bold());
             let cat_picture = cat_template.replace("{eye}", &eye);
             println!("{}", message.bright_yellow().underline().on_purple());
@@ -38,4 +49,5 @@ fn main() {
             println!("    =( I )=");
         }
     }
+    Ok(())
 }
